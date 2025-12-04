@@ -335,6 +335,6 @@ Le design de ce dashboard a ete realise par **[@powl_d](https://x.com/powl_d)**.
 
 <div align="center">
 
-**Fait avec coeur pour les utilisateurs de Freebox Ultra**
+**Fait avec amour pour les utilisateurs de Freebox Ultra**
 
 </div>
