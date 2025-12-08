@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { freeboxApi } from '../services/freeboxApi.js';
+import { modelDetection } from '../services/modelDetection.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
 
 const router = Router();
@@ -38,6 +39,19 @@ const mockVms = [
 
 // GET /api/vm - Get all VMs
 router.get('/', asyncHandler(async (_req, res) => {
+  // Check if VMs are supported on this model
+  const capabilities = modelDetection.getCapabilities();
+  if (capabilities && capabilities.vmSupport === 'none') {
+    res.status(403).json({
+      success: false,
+      error: {
+        code: 'vm_not_supported',
+        message: `Les machines virtuelles ne sont pas supportées sur ${capabilities.modelName}`
+      }
+    });
+    return;
+  }
+
   try {
     const result = await freeboxApi.getVms();
     res.json(result);
@@ -136,6 +150,42 @@ router.post('/:id/restart', asyncHandler(async (req, res) => {
 
 // POST /api/vm - Create a new VM
 router.post('/', asyncHandler(async (req, res) => {
+  // Check if VMs are supported on this model
+  const capabilities = modelDetection.getCapabilities();
+  if (capabilities && capabilities.vmSupport === 'none') {
+    res.status(403).json({
+      success: false,
+      error: {
+        code: 'vm_not_supported',
+        message: `Les machines virtuelles ne sont pas supportées sur ${capabilities.modelName}`
+      }
+    });
+    return;
+  }
+
+  // If limited VM support, check current VM count
+  if (capabilities && capabilities.vmSupport === 'limited') {
+    try {
+      const vmsResult = await freeboxApi.getVms();
+      if (vmsResult.success && Array.isArray(vmsResult.result)) {
+        const currentVmCount = vmsResult.result.length;
+        if (currentVmCount >= capabilities.maxVms) {
+          res.status(400).json({
+            success: false,
+            error: {
+              code: 'vm_limit_reached',
+              message: `Limite atteinte: ${capabilities.modelName} supporte maximum ${capabilities.maxVms} VM(s). Vous en avez déjà ${currentVmCount}.`
+            }
+          });
+          return;
+        }
+      }
+    } catch {
+      // Continue anyway if we can't check
+      console.log('[VM] Could not check VM count for limit');
+    }
+  }
+
   // First check if disk is available
   try {
     const disksResult = await freeboxApi.getDisks();

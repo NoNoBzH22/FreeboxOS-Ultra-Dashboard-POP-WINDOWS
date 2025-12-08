@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -24,6 +25,7 @@ import parentalRoutes from './routes/parental.js';
 import settingsRoutes from './routes/settings.js';
 import notificationsRoutes from './routes/notifications.js';
 import speedtestRoutes from './routes/speedtest.js';
+import capabilitiesRoutes from './routes/capabilities.js';
 
 const app = express();
 
@@ -56,6 +58,7 @@ app.use('/api/parental', parentalRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/speedtest', speedtestRoutes);
+app.use('/api/capabilities', capabilitiesRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

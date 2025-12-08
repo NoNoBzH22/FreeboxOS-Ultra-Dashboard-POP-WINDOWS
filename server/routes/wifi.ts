@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { freeboxApi } from '../services/freeboxApi.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { modelDetection } from '../services/modelDetection.js';
 
 const router = Router();
 
@@ -87,14 +88,33 @@ router.get('/full', asyncHandler(async (_req, res) => {
     }
   }
 
+  // Filter out 6GHz data if model doesn't support it
+  const supports6ghz = modelDetection.supportsWifi6ghz();
+  let filteredAps = apsData || [];
+  let filteredBss = bssData || [];
+  const filteredDevicesByBand = { ...devicesByBand };
+
+  if (!supports6ghz && Array.isArray(apsData) && Array.isArray(bssData)) {
+    // Filter out 6GHz APs
+    filteredAps = apsData.filter(
+      (ap: { band?: string }) => !ap.band?.toLowerCase().includes('6g')
+    );
+    // Filter out 6GHz BSS
+    filteredBss = bssData.filter(
+      (bss: { band?: string }) => !bss.band?.toLowerCase().includes('6g')
+    );
+    // Remove 6GHz device count
+    filteredDevicesByBand['6g'] = 0;
+  }
+
   res.json({
     success: true,
     result: {
       config: configData,
-      aps: apsData,
-      bss: bssData,
-      wifiDeviceCount,
-      devicesByBand
+      aps: filteredAps,
+      bss: filteredBss,
+      wifiDeviceCount: supports6ghz ? wifiDeviceCount : wifiDeviceCount - devicesByBand['6g'],
+      devicesByBand: filteredDevicesByBand
     }
   });
 }));

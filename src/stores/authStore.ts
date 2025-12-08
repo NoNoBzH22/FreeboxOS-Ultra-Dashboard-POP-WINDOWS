@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { api } from '../api/client';
 import { API_ROUTES } from '../utils/constants';
 import type { AuthStatus, RegistrationStatus, Permissions } from '../types/api';
+import { useCapabilitiesStore, type FreeboxCapabilities } from './capabilitiesStore';
 
 interface AuthState {
   isRegistered: boolean;
@@ -38,7 +39,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   checkAuth: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get<AuthStatus>(API_ROUTES.AUTH_CHECK);
+      const response = await api.get<AuthStatus & { capabilities?: FreeboxCapabilities }>(API_ROUTES.AUTH_CHECK);
       if (response.success && response.result) {
         set({
           isRegistered: response.result.isRegistered,
@@ -46,6 +47,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           permissions: response.result.permissions,
           isLoading: false
         });
+        // Store capabilities if available
+        if (response.result.capabilities) {
+          useCapabilitiesStore.getState().setCapabilities(response.result.capabilities);
+        }
       } else {
         set({ isLoading: false });
       }
@@ -112,13 +117,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.post<{ permissions: Permissions }>(API_ROUTES.AUTH_LOGIN);
+      const response = await api.post<{ permissions: Permissions; capabilities?: FreeboxCapabilities }>(API_ROUTES.AUTH_LOGIN);
       if (response.success && response.result) {
         set({
           isLoggedIn: true,
           permissions: response.result.permissions,
           isLoading: false
         });
+        // Store capabilities if available
+        if (response.result.capabilities) {
+          useCapabilitiesStore.getState().setCapabilities(response.result.capabilities);
+        }
       } else {
         set({
           isLoading: false,
@@ -137,6 +146,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoggedIn: false,
         permissions: {}
       });
+      // Clear capabilities on logout
+      useCapabilitiesStore.getState().clearCapabilities();
     } catch {
       set({ error: 'Logout failed' });
     }

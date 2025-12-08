@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Thermometer,
   Fan,
@@ -12,7 +12,19 @@ import {
 import logoUltra from '../../icons/logo_ultra.svg';
 import { StatusBadge } from '../ui/Badge';
 import { formatSpeed, formatTemperature } from '../../utils/constants';
+import { useCapabilitiesStore } from '../../stores/capabilitiesStore';
 import type { SystemInfo, ConnectionStatus } from '../../types/api';
+
+// Map model to display name
+const getDisplayName = (model: string): string => {
+  switch (model) {
+    case 'ultra': return 'Freebox Ultra';
+    case 'delta': return 'Freebox Delta';
+    case 'pop': return 'Freebox Pop';
+    case 'revolution': return 'Freebox Revolution';
+    default: return 'Freebox';
+  }
+};
 
 interface HeaderProps {
   systemInfo?: SystemInfo | null;
@@ -36,6 +48,9 @@ const getCpuTemp = (info: SystemInfo | null | undefined): number | null => {
 };
 
 export const Header: React.FC<HeaderProps> = ({ systemInfo, connectionStatus }) => {
+  // Get capabilities for model name (respects mock mode)
+  const { getModel } = useCapabilitiesStore();
+
   // Get CPU temperature (works for all Freebox models)
   const cpuTemp = getCpuTemp(systemInfo);
   const temp = cpuTemp != null ? formatTemperature(cpuTemp) : '--';
@@ -51,9 +66,15 @@ export const Header: React.FC<HeaderProps> = ({ systemInfo, connectionStatus }) 
   const connectionState = connectionStatus?.state === 'up' ? 'UP' : 'DOWN';
   const ipv4 = connectionStatus?.ipv4 || '--';
 
-  // Use box_model_name from api_version if available (e.g. "Freebox v9 (r1)")
-  // Otherwise fall back to board_name
-  const boxName = systemInfo?.box_model_name || systemInfo?.board_name || 'Freebox';
+  // Get simplified display name based on model (e.g., "Freebox Ultra", "Freebox Pop")
+  const model = getModel();
+  const boxName = getDisplayName(model);
+
+  // Update page title based on model
+  useEffect(() => {
+    const modelSuffix = model === 'unknown' ? '' : ` ${model.charAt(0).toUpperCase() + model.slice(1)}`;
+    document.title = `Freebox OS${modelSuffix}`;
+  }, [model]);
 
   return (
     <header className="flex flex-col md:flex-row items-center justify-between p-4 bg-[#111111] border-b border-gray-800 gap-4">
