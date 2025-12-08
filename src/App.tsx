@@ -49,7 +49,7 @@ const App: React.FC = () => {
   // Data stores
   const { info: systemInfo, temperatureHistory: systemTempHistory, fetchSystemInfo, reboot } = useSystemStore();
   const { status: connectionStatus, history: networkHistory, extendedHistory, fetchConnectionStatus, fetchExtendedHistory } = useConnectionStore();
-  const { networks: wifiNetworks, isLoading: wifiLoading, fetchWifiStatus } = useWifiStore();
+  const { networks: wifiNetworks, isLoading: wifiLoading, fetchWifiStatus, toggleBss } = useWifiStore();
   const { devices, fetchDevices } = useLanStore();
   const { tasks: downloads, fetchDownloads } = useDownloadsStore();
   const { vms, isLoading: vmLoading, error: vmError, fetchVms, startVm, stopVm } = useVmStore();
@@ -185,6 +185,10 @@ const App: React.FC = () => {
     } else {
       await stopVm(id);
     }
+  };
+
+  const handleWifiToggle = async (bssId: string, enabled: boolean) => {
+    await toggleBss(bssId, enabled);
   };
 
   const handlePageChange = (page: PageType) => {
@@ -372,9 +376,9 @@ const App: React.FC = () => {
             <Card
               title="Wifi"
               actions={
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-1 sm:gap-2">
                   <ActionButton label="Filtrage" icon={Sliders} onClick={() => { setWifiModalTab('filter'); setIsWifiModalOpen(true); }} />
-                  <ActionButton label="Planification" icon={Calendar} onClick={() => { setWifiModalTab('planning'); setIsWifiModalOpen(true); }} />
+                  <ActionButton label="Planif." icon={Calendar} onClick={() => { setWifiModalTab('planning'); setIsWifiModalOpen(true); }} />
                   <ActionButton label="WPS" icon={WifiIcon} onClick={() => { setWifiModalTab('wps'); setIsWifiModalOpen(true); }} />
                 </div>
               }
@@ -382,7 +386,7 @@ const App: React.FC = () => {
               {wifiLoading ? (
                 <div className="text-center text-gray-500 py-4">Chargement...</div>
               ) : wifiNetworks.length > 0 ? (
-                <WifiPanel networks={wifiNetworks} />
+                <WifiPanel networks={wifiNetworks} onToggle={handleWifiToggle} />
               ) : (
                 <div className="text-center text-gray-500 py-4">
                   Aucun réseau WiFi configuré

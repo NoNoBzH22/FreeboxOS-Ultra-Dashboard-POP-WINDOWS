@@ -770,7 +770,14 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onBack }) => {
                     tickFormatter={(value) => `${value}%`}
                   />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
+                    contentStyle={{
+                      backgroundColor: '#1f2937',
+                      border: '1px solid #374151',
+                      borderRadius: '8px',
+                      color: '#ffffff'
+                    }}
+                    labelStyle={{ color: '#9ca3af' }}
+                    itemStyle={{ color: '#ffffff' }}
                     formatter={(value: number) => [`${value}%`, 'Disponibilité']}
                   />
                   <Bar

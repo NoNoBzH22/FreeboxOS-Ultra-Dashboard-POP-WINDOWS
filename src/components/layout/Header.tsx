@@ -6,7 +6,6 @@ import {
   ArrowUp,
   Wifi,
   Activity,
-  Plus,
   Phone
 } from 'lucide-react';
 import logoUltra from '../../icons/logo_ultra.svg';
@@ -86,10 +85,6 @@ export const Header: React.FC<HeaderProps> = ({ systemInfo, connectionStatus }) 
 
       {/* Status badges */}
       <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-hide">
-        <button className="p-2 bg-[#1a1a1a] hover:bg-[#252525] rounded-lg border border-gray-700 text-gray-400 transition-colors">
-          <Plus size={18} />
-        </button>
-
         <StatusBadge
           icon={<Thermometer size={16} />}
           value={temp}

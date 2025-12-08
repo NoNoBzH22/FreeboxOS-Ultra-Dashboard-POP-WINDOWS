@@ -43,22 +43,22 @@ export const VmPanel: React.FC<VmPanelProps> = ({ vms, onToggle, onConsole }) =>
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           <ResourceBar
             label="CPU"
-            percent={vm.cpuUsage}
+            percent={vm.cpuUsage || 0}
             color="bg-emerald-500"
           />
           <ResourceBar
             label="RAM"
-            percent={(vm.ramUsage / vm.ramTotal) * 100}
-            text={`${vm.ramUsage}Go/${vm.ramTotal}Go`}
+            percent={vm.ramTotal > 0 ? (vm.ramUsage / vm.ramTotal) * 100 : 0}
+            text={vm.ramTotal > 0 ? `${vm.ramUsage.toFixed(1)}/${vm.ramTotal.toFixed(0)}G` : '--'}
             color="bg-emerald-500"
           />
           <ResourceBar
-            label="HDD"
-            percent={(vm.diskUsage / vm.diskTotal) * 100}
-            text={`${vm.diskUsage}To/${vm.diskTotal}To`}
+            label="Disque"
+            percent={vm.diskTotal > 0 ? (vm.diskUsage / vm.diskTotal) * 100 : 0}
+            text={vm.diskTotal > 0 ? `${vm.diskUsage.toFixed(1)}/${vm.diskTotal}T` : '--'}
             color="bg-cyan-500"
           />
         </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Settings,
   Tv,
@@ -10,6 +10,7 @@ import {
   LogOut,
   Home
 } from 'lucide-react';
+import { useCapabilitiesStore } from '../../stores/capabilitiesStore';
 
 export type PageType = 'dashboard' | 'tv' | 'phone' | 'files' | 'vms' | 'analytics' | 'settings';
 
@@ -21,7 +22,7 @@ interface FooterProps {
 }
 
 // Internal pages (handled within the dashboard)
-const internalTabs: { id: PageType; label: string; icon: React.ElementType }[] = [
+const allTabs: { id: PageType; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard', label: 'Accueil', icon: Home },
   { id: 'tv', label: 'Télévision', icon: Tv },
   { id: 'phone', label: 'Téléphone', icon: Phone },
@@ -37,6 +38,21 @@ export const Footer: React.FC<FooterProps> = ({
   onReboot,
   onLogout
 }) => {
+  const { capabilities } = useCapabilitiesStore();
+
+  // Filter tabs based on capabilities
+  // Only hide VMs tab for models that explicitly don't support VMs (Pop, Revolution)
+  // Show VMs tab by default if capabilities not yet loaded
+  const visibleTabs = useMemo(() => {
+    return allTabs.filter(tab => {
+      // Hide VMs tab only if we know the model doesn't support VMs
+      if (tab.id === 'vms' && capabilities?.vmSupport === 'none') {
+        return false;
+      }
+      return true;
+    });
+  }, [capabilities?.vmSupport]);
+
   const handleTabClick = (tabId: PageType) => {
     onPageChange?.(tabId);
   };
@@ -46,7 +62,7 @@ export const Footer: React.FC<FooterProps> = ({
       <div className="flex items-center justify-between max-w-[1920px] mx-auto px-2">
         {/* Navigation tabs */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-          {internalTabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = currentPage === tab.id;
 

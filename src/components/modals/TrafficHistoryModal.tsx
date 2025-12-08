@@ -109,9 +109,10 @@ export const TrafficHistoryModal: React.FC<TrafficHistoryModalProps> = ({
     return `${minutes}m`;
   };
 
+  // Use decimal (1000) for network data to match Freebox OS display
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 B';
-    const k = 1024;
+    const k = 1000; // Decimal system (network convention) to match Freebox OS
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
@@ -209,13 +210,13 @@ export const TrafficHistoryModal: React.FC<TrafficHistoryModalProps> = ({
                   </div>
                 </div>
                 <div className="bg-[#1a1a1a] rounded-xl p-4 border border-gray-800">
-                  <div className="text-xs text-gray-500 mb-1">Bande passante max</div>
+                  <div className="text-xs text-gray-500 mb-1">Total émis</div>
                   <div className="text-2xl font-bold text-white">
-                    {connectionStatus ? formatBitrate(connectionStatus.bandwidth_down) : '--'}
+                    {connectionStatus ? formatBytes(connectionStatus.bytes_up) : '--'}
                   </div>
                 </div>
                 <div className="bg-[#1a1a1a] rounded-xl p-4 border border-gray-800">
-                  <div className="text-xs text-gray-500 mb-1">Total téléchargé</div>
+                  <div className="text-xs text-gray-500 mb-1">Total reçu</div>
                   <div className="text-2xl font-bold text-white">
                     {connectionStatus ? formatBytes(connectionStatus.bytes_down) : '--'}
                   </div>

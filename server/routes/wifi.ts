@@ -37,6 +37,15 @@ router.get('/bss', asyncHandler(async (_req, res) => {
   res.json(result);
 }));
 
+// PUT /api/wifi/bss/:id - Enable/disable a specific BSS
+router.put('/bss/:id', asyncHandler(async (req, res) => {
+  const { enabled } = req.body;
+  console.log(`[WiFi] Toggle BSS ${req.params.id} -> enabled: ${enabled}`);
+  const result = await freeboxApi.updateWifiBss(req.params.id, { enabled });
+  console.log(`[WiFi] Toggle BSS result:`, result.success ? 'OK' : 'FAILED');
+  res.json(result);
+}));
+
 // WiFi device type for band counting
 interface WifiLanDevice {
   active?: boolean;

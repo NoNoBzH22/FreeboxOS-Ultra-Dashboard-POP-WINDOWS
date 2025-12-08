@@ -134,20 +134,31 @@ export function detectModelFromName(modelName: string): FreeboxModel {
   const lower = modelName.toLowerCase();
 
   // Check for specific model identifiers
+  // Order matters: check Pop BEFORE Delta since Pop hardware identifier may contain v8/fbxgw8
+
+  // Ultra / v9
   if (lower.includes('v9') || lower.includes('ultra')) {
     return 'ultra';
   }
-  if (lower.includes('v8') || lower.includes('delta')) {
-    return 'delta';
-  }
+
+  // Pop - MUST be checked before Delta
+  // Pop identifiers: "pop", "fbxgw8-pop", "Freebox Pop", etc.
   if (lower.includes('pop')) {
     return 'pop';
   }
-  if (lower.includes('v6') || lower.includes('revolution') || lower.includes('révolution')) {
+
+  // Delta / v8 (after Pop check to avoid misdetection)
+  if (lower.includes('v8') || lower.includes('delta') || lower.includes('fbxgw8')) {
+    return 'delta';
+  }
+
+  // Revolution / v6
+  if (lower.includes('v6') || lower.includes('revolution') || lower.includes('révolution') || lower.includes('fbxgw1')) {
     return 'revolution';
   }
-  if (lower.includes('v7') || lower.includes('mini')) {
-    // Mini 4K - treat as limited like revolution
+
+  // Mini 4K / v7 - treat as limited like revolution
+  if (lower.includes('v7') || lower.includes('mini') || lower.includes('fbxgw7')) {
     return 'revolution';
   }
 

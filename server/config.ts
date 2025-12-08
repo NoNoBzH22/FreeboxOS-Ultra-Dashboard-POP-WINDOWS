@@ -1,12 +1,30 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Determine token file path:
+// 1. Use FREEBOX_TOKEN_FILE env var if set (Docker/production)
+// 2. Otherwise use local file relative to project root
+const getTokenFilePath = (): string => {
+  if (process.env.FREEBOX_TOKEN_FILE) {
+    return process.env.FREEBOX_TOKEN_FILE;
+  }
+  // Default: .freebox_token in project root (one level up from server/)
+  return path.join(__dirname, '..', '.freebox_token');
+};
+
 // Server configuration
 export const config = {
   // Server
-  port: process.env.SERVER_PORT || 3001,
+  port: parseInt(process.env.PORT || process.env.SERVER_PORT || '3001', 10),
 
   // Freebox API
   freebox: {
     // Default URLs - can be overridden by env vars
-    url: process.env.FREEBOX_URL || 'https://mafreebox.freebox.fr',
+    // FREEBOX_HOST allows setting just the hostname (used by Docker)
+    url: process.env.FREEBOX_URL || `https://${process.env.FREEBOX_HOST || 'mafreebox.freebox.fr'}`,
     localIp: process.env.FREEBOX_LOCAL_IP || '192.168.1.254',
 
     // App registration details
@@ -21,8 +39,8 @@ export const config = {
     // Timeouts
     requestTimeout: 10000,
 
-    // Token storage file
-    tokenFile: '.freebox_token'
+    // Token storage file path (absolute path for Docker compatibility)
+    tokenFile: getTokenFilePath()
   }
 };
 
