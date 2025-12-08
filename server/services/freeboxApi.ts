@@ -48,9 +48,21 @@ class FreeboxApiService {
     return this.baseUrl;
   }
 
+  // Get token file path (handles both relative and absolute paths)
+  private getTokenPath(): string {
+    const tokenFile = config.freebox.tokenFile;
+    // If it's already an absolute path, use it directly
+    if (path.isAbsolute(tokenFile)) {
+      return tokenFile;
+    }
+    // Otherwise, resolve relative to cwd
+    return path.join(process.cwd(), tokenFile);
+  }
+
   // Load app_token from file
   private loadToken() {
-    const tokenPath = path.join(process.cwd(), config.freebox.tokenFile);
+    const tokenPath = this.getTokenPath();
+    console.log(`[FreeboxAPI] Token file path: ${tokenPath}`);
     if (fs.existsSync(tokenPath)) {
       try {
         const data = JSON.parse(fs.readFileSync(tokenPath, 'utf-8')) as TokenData;
@@ -59,15 +71,22 @@ class FreeboxApiService {
       } catch {
         console.log('[FreeboxAPI] Failed to load token file');
       }
+    } else {
+      console.log('[FreeboxAPI] No token file found - registration required');
     }
   }
 
   // Save app_token to file
   private saveToken(appToken: string) {
-    const tokenPath = path.join(process.cwd(), config.freebox.tokenFile);
-    fs.writeFileSync(tokenPath, JSON.stringify({ appToken }), 'utf-8');
+    const tokenPath = this.getTokenPath();
+    // Ensure directory exists (for Docker volumes)
+    const tokenDir = path.dirname(tokenPath);
+    if (!fs.existsSync(tokenDir)) {
+      fs.mkdirSync(tokenDir, { recursive: true });
+    }
+    fs.writeFileSync(tokenPath, JSON.stringify({ appToken }, null, 2), 'utf-8');
     this.appToken = appToken;
-    console.log('[FreeboxAPI] Saved app_token to file');
+    console.log(`[FreeboxAPI] Saved app_token to ${tokenPath}`);
   }
 
   // Build full API URL
@@ -378,6 +397,11 @@ class FreeboxApiService {
 
   async getWifiBss(): Promise<FreeboxApiResponse> {
     return this.request('GET', API_ENDPOINTS.WIFI_BSS);
+  }
+
+  async updateWifiBss(bssId: string, params: { enabled: boolean }): Promise<FreeboxApiResponse> {
+    // API expects: { config: { enabled: true/false } }
+    return this.request('PUT', `${API_ENDPOINTS.WIFI_BSS}${bssId}`, { config: params });
   }
 
   async getWifiStations(): Promise<FreeboxApiResponse> {

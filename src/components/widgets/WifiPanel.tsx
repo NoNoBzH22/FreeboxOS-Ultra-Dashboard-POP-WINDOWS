@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { QrCode, X, Copy, Check, Wifi } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { QrCode, X, Copy, Check, Wifi, Eye, EyeOff } from 'lucide-react';
 import { Toggle } from '../ui/Toggle';
 import type { WifiNetwork } from '../../types';
 
@@ -9,80 +9,34 @@ interface WifiPanelProps {
   onToggle?: (id: string, enabled: boolean) => void;
 }
 
+// Generate WiFi connection string for QR code (standard format)
+const generateWifiString = (ssid: string, password: string, security: string = 'WPA'): string => {
+  // Escape special characters in SSID and password
+  const escapeString = (str: string) => str.replace(/([\\;,:"'])/g, '\\$1');
+  return `WIFI:T:${security};S:${escapeString(ssid)};P:${escapeString(password)};;`;
+};
+
 // QR Code Modal component
 const QrCodeModal: React.FC<{
   network: WifiNetwork;
-  password?: string;
   onClose: () => void;
-}> = ({ network, password, onClose }) => {
+}> = ({ network, onClose }) => {
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
 
-  // Simple QR code generation using canvas
+  // Generate QR code URL when password changes
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const size = 200;
-    canvas.width = size;
-    canvas.height = size;
-
-    // Create a simple placeholder QR pattern (in production, use a library like qrcode)
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, size, size);
-
-    ctx.fillStyle = '#000000';
-    const moduleSize = 8;
-    const qrSize = Math.floor(size / moduleSize);
-
-    // Generate pseudo-random pattern based on SSID (visual placeholder)
-    const seed = network.ssid.split('').reduce((a: number, b: string) => a + b.charCodeAt(0), 0);
-    for (let y = 0; y < qrSize; y++) {
-      for (let x = 0; x < qrSize; x++) {
-        // Corner patterns (finder patterns)
-        const isCorner = (x < 7 && y < 7) ||
-                        (x >= qrSize - 7 && y < 7) ||
-                        (x < 7 && y >= qrSize - 7);
-
-        if (isCorner) {
-          const inBorder = x === 0 || x === 6 || y === 0 || y === 6 ||
-                          x === qrSize - 1 || x === qrSize - 7 ||
-                          y === qrSize - 1 || y === qrSize - 7;
-          const inCenter = (x >= 2 && x <= 4 && y >= 2 && y <= 4) ||
-                          (x >= qrSize - 5 && x <= qrSize - 3 && y >= 2 && y <= 4) ||
-                          (x >= 2 && x <= 4 && y >= qrSize - 5 && y <= qrSize - 3);
-          if (inBorder || inCenter) {
-            ctx.fillRect(x * moduleSize, y * moduleSize, moduleSize, moduleSize);
-          }
-        } else {
-          // Data pattern
-          const val = ((seed * (x + 1) * (y + 1)) % 100);
-          if (val > 50) {
-            ctx.fillRect(x * moduleSize, y * moduleSize, moduleSize, moduleSize);
-          }
-        }
-      }
+    if (password.length >= 8) {
+      const wifiString = generateWifiString(network.ssid, password);
+      // Use QR Server API to generate QR code
+      const encodedData = encodeURIComponent(wifiString);
+      setQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodedData}&bgcolor=ffffff&color=000000&margin=10`);
+    } else {
+      setQrUrl(null);
     }
-
-    // Add WiFi icon in center
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(size/2 - 20, size/2 - 20, 40, 40);
-    ctx.fillStyle = '#3b82f6';
-    ctx.beginPath();
-    ctx.arc(size/2, size/2 + 5, 5, 0, Math.PI * 2);
-    ctx.fill();
-    // Signal arcs
-    for (let i = 1; i <= 3; i++) {
-      ctx.beginPath();
-      ctx.arc(size/2, size/2 + 5, 8 + i * 6, Math.PI * 1.25, Math.PI * 1.75);
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
-  }, [network.ssid]);
+  }, [password, network.ssid]);
 
   const handleCopyPassword = () => {
     if (password) {
@@ -109,23 +63,35 @@ const QrCodeModal: React.FC<{
         </div>
 
         <div className="p-6 flex flex-col items-center">
-          {/* QR Code */}
-          <div className="bg-white p-4 rounded-xl mb-4">
-            <canvas ref={canvasRef} className="w-[200px] h-[200px]" />
-          </div>
-
           {/* Network info */}
           <div className="text-center mb-4">
             <h3 className="text-lg font-semibold text-white">{network.ssid}</h3>
             <p className="text-sm text-gray-500">{network.band} - Canal {network.channel}</p>
           </div>
 
-          {/* Password display */}
-          {password ? (
-            <div className="w-full">
-              <p className="text-xs text-gray-500 mb-1">Mot de passe</p>
-              <div className="flex items-center gap-2 bg-[#1a1a1a] rounded-lg p-3 border border-gray-800">
-                <code className="flex-1 text-sm text-white font-mono">{password}</code>
+          {/* Password input */}
+          <div className="w-full mb-4">
+            <label className="text-xs text-gray-500 mb-1 block">Mot de passe WiFi</label>
+            <div className="flex items-center gap-2 bg-[#1a1a1a] rounded-lg p-3 border border-gray-800">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Entrez le mot de passe"
+                className="flex-1 bg-transparent text-sm text-white font-mono focus:outline-none placeholder:text-gray-600"
+              />
+              <button
+                onClick={() => setShowPassword(!showPassword)}
+                className="p-1.5 hover:bg-gray-700 rounded transition-colors"
+                title={showPassword ? 'Masquer' : 'Afficher'}
+              >
+                {showPassword ? (
+                  <EyeOff size={16} className="text-gray-400" />
+                ) : (
+                  <Eye size={16} className="text-gray-400" />
+                )}
+              </button>
+              {password && (
                 <button
                   onClick={handleCopyPassword}
                   className="p-1.5 hover:bg-gray-700 rounded transition-colors"
@@ -137,16 +103,36 @@ const QrCodeModal: React.FC<{
                     <Copy size={16} className="text-gray-400" />
                   )}
                 </button>
-              </div>
+              )}
             </div>
-          ) : (
-            <p className="text-sm text-gray-500">
-              Scannez ce QR code avec votre appareil pour vous connecter
-            </p>
-          )}
+            {password.length > 0 && password.length < 8 && (
+              <p className="text-xs text-orange-400 mt-1">Le mot de passe doit contenir au moins 8 caractères</p>
+            )}
+          </div>
 
-          <p className="text-xs text-gray-600 mt-4 text-center">
-            Note: Pour un QR code fonctionnel, le mot de passe WiFi doit être configuré dans les paramètres.
+          {/* QR Code */}
+          <div className="bg-white p-4 rounded-xl mb-4 min-h-[232px] min-w-[232px] flex items-center justify-center">
+            {qrUrl ? (
+              <img
+                src={qrUrl}
+                alt="QR Code WiFi"
+                className="w-[200px] h-[200px]"
+                crossOrigin="anonymous"
+              />
+            ) : (
+              <div className="w-[200px] h-[200px] flex items-center justify-center bg-gray-100 rounded-lg">
+                <div className="text-center text-gray-400">
+                  <QrCode size={48} className="mx-auto mb-2 opacity-30" />
+                  <p className="text-xs">Entrez le mot de passe<br />pour générer le QR code</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <p className="text-xs text-gray-500 text-center">
+            {qrUrl
+              ? 'Scannez ce QR code avec votre appareil pour vous connecter automatiquement'
+              : 'L\'API Freebox ne retourne pas les mots de passe WiFi pour des raisons de sécurité'}
           </p>
         </div>
       </div>
@@ -156,6 +142,16 @@ const QrCodeModal: React.FC<{
 
 export const WifiPanel: React.FC<WifiPanelProps> = ({ networks, onToggle }) => {
   const [selectedNetwork, setSelectedNetwork] = useState<WifiNetwork | null>(null);
+
+  // Handle WiFi toggle with confirmation - warns that it may restart WiFi module
+  const handleToggle = (net: WifiNetwork, enabled: boolean) => {
+    const action = enabled ? 'activer' : 'désactiver';
+    const confirmed = window.confirm(
+      `⚠️ Attention !\n\nVous allez ${action} le réseau WiFi "${net.ssid}" (${net.band}).\n\nCette action peut redémarrer le module WiFi de la Freebox et couper temporairement toutes les connexions WiFi.\n\nContinuer ?`
+    );
+    if (!confirmed) return;
+    onToggle?.(net.id, enabled);
+  };
 
   return (
     <>
@@ -179,7 +175,7 @@ export const WifiPanel: React.FC<WifiPanelProps> = ({ networks, onToggle }) => {
                 <div className="flex items-center gap-2">
                   <Toggle
                     checked={net.active}
-                    onChange={(checked) => onToggle?.(net.id, checked)}
+                    onChange={(checked) => handleToggle(net, checked)}
                     size="sm"
                   />
                   <button

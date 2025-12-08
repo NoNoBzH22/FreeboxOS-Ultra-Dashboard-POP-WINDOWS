@@ -14,6 +14,7 @@ interface WifiState {
   // Actions
   fetchWifiStatus: () => Promise<void>;
   toggleWifi: (enabled: boolean) => Promise<void>;
+  toggleBss: (bssId: string, enabled: boolean) => Promise<void>;
 }
 
 // Helper to map band string to display format
@@ -102,7 +103,29 @@ export const useWifiStore = create<WifiState>((set, get) => ({
                 dfs_cac_remaining_time?: number;
               } | undefined;
 
+              const apConfig = matchingAp?.config as {
+                channel_width?: string | number;
+                primary_channel?: number;
+              } | undefined;
+
               const channelUsage = apStatus?.channel_usage ?? 0;
+
+              // Get channel width from status first, then config, with band-appropriate defaults
+              // 2.4GHz typically uses 20MHz, 5GHz uses 80MHz, 6GHz uses 160MHz
+              let channelWidth = 20;
+              if (apStatus?.channel_width) {
+                channelWidth = apStatus.channel_width;
+              } else if (apConfig?.channel_width) {
+                // Config can be string like "80" or number
+                channelWidth = typeof apConfig.channel_width === 'string'
+                  ? parseInt(apConfig.channel_width, 10) || 20
+                  : apConfig.channel_width;
+              } else {
+                // Default based on band
+                if (band === '6GHz') channelWidth = 160;
+                else if (band === '5GHz') channelWidth = 80;
+                else channelWidth = 20;
+              }
 
               // Get device count for this band from devicesByBand
               let bandDeviceCount = 0;
@@ -120,8 +143,8 @@ export const useWifiStore = create<WifiState>((set, get) => ({
                 id: b.id,
                 ssid: b.config.ssid || 'Unknown',
                 band,
-                channelWidth: apStatus?.channel_width || 20,
-                channel: apStatus?.primary_channel || 0,
+                channelWidth,
+                channel: apStatus?.primary_channel || apConfig?.primary_channel || 0,
                 active: b.status?.state === 'active',
                 connectedDevices: bandDeviceCount,
                 load: estimatedLoad
@@ -156,6 +179,27 @@ export const useWifiStore = create<WifiState>((set, get) => ({
       }
     } catch {
       set({ error: 'Failed to toggle WiFi' });
+    }
+  },
+
+  toggleBss: async (bssId: string, enabled: boolean) => {
+    try {
+      const response = await api.put(`/api/wifi/bss/${bssId}`, { enabled });
+      if (response.success) {
+        // Update local state optimistically
+        const { networks } = get();
+        set({
+          networks: networks.map(n =>
+            n.id === bssId ? { ...n, active: enabled } : n
+          )
+        });
+        // Refresh full status to get accurate data
+        get().fetchWifiStatus();
+      } else {
+        set({ error: response.error?.message || 'Failed to toggle BSS' });
+      }
+    } catch {
+      set({ error: 'Failed to toggle BSS' });
     }
   }
 }));

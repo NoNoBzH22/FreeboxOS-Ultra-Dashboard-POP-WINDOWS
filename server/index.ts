@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -24,12 +25,18 @@ import parentalRoutes from './routes/parental.js';
 import settingsRoutes from './routes/settings.js';
 import notificationsRoutes from './routes/notifications.js';
 import speedtestRoutes from './routes/speedtest.js';
+import capabilitiesRoutes from './routes/capabilities.js';
 
 const app = express();
 
 // Middleware
+// In production (Docker), allow all origins since frontend is served from same server
+// In development, restrict to known dev ports
+const corsOrigin = process.env.NODE_ENV === 'production'
+  ? true  // Allow all origins in production (frontend served from same origin)
+  : ['http://localhost:3000', 'http://localhost:5173'];
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173'],
+  origin: corsOrigin,
   credentials: true
 }));
 app.use(express.json());
@@ -56,6 +63,7 @@ app.use('/api/parental', parentalRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/speedtest', speedtestRoutes);
+app.use('/api/capabilities', capabilitiesRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -76,13 +84,15 @@ app.get('/{*splat}', (_req, res) => {
 
 // Start server
 const port = config.port;
-app.listen(port, () => {
+const host = '0.0.0.0'; // Bind to all interfaces for Docker compatibility
+app.listen(port, host, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║           Freebox Dashboard Backend Server                ║
 ╠═══════════════════════════════════════════════════════════╣
-║  Server running on: http://localhost:${port}              ║
-║  Freebox URL: ${config.freebox.url}                       ║
+║  Local:   http://localhost:${port}                        ║
+║  Network: http://IP_DU_SERVEUR:${port}                    ║
+║  Freebox: ${config.freebox.url}                           ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
 });

@@ -19,6 +19,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useVmStore } from '../stores';
+import { useCapabilitiesStore } from '../stores/capabilitiesStore';
 import type { VM } from '../types';
 
 // Format bytes to human readable
@@ -360,12 +361,17 @@ export const VmsPage: React.FC<VmsPageProps> = ({ onBack }) => {
     stopVm
   } = useVmStore();
 
+  // Get capabilities to check VM support
+  const { supportsVm, hasLimitedVmSupport, getMaxVms, getModelName } = useCapabilitiesStore();
+
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Fetch VMs on mount
+  // Fetch VMs on mount (only if supported)
   useEffect(() => {
-    fetchVms();
-  }, [fetchVms]);
+    if (supportsVm()) {
+      fetchVms();
+    }
+  }, [fetchVms, supportsVm]);
 
   // VM actions
   const handleStartVm = async (id: string) => {
@@ -406,6 +412,57 @@ export const VmsPage: React.FC<VmsPageProps> = ({ onBack }) => {
   // Count running VMs
   const runningVms = vms.filter(vm => vm.status === 'running').length;
 
+  // Check if VMs are not supported
+  if (!supportsVm()) {
+    return (
+      <div className="min-h-screen bg-[#050505] text-gray-300">
+        <header className="sticky top-0 z-40 bg-[#0a0a0a]/95 backdrop-blur-sm border-b border-gray-800">
+          <div className="max-w-[1920px] mx-auto px-4 py-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={onBack}
+                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-500/20 rounded-lg">
+                  <Server size={24} className="text-purple-400" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-white">Machines Virtuelles</h1>
+                  <p className="text-sm text-gray-500">Non disponible</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-[1920px] mx-auto px-4 py-6 pb-24">
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="w-20 h-20 rounded-full bg-amber-500/10 flex items-center justify-center mb-6">
+              <Server size={40} className="text-amber-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">VMs non disponibles</h2>
+            <p className="text-gray-500 text-center max-w-md mb-4">
+              Les machines virtuelles ne sont pas supportees sur votre modele de Freebox.
+            </p>
+            <p className="text-sm text-gray-600 mb-6">
+              Modele detecte : <span className="text-gray-400">{getModelName()}</span>
+            </p>
+            <button
+              onClick={onBack}
+              className="flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+            >
+              <ChevronLeft size={20} />
+              Retour au dashboard
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#050505] text-gray-300">
       {/* Header */}
@@ -424,7 +481,10 @@ export const VmsPage: React.FC<VmsPageProps> = ({ onBack }) => {
                   <Server size={24} className="text-purple-400" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold text-white">Machines Virtuelles</h1>
+                  <h1 className="text-xl font-bold text-white">
+                    Machines Virtuelles
+                    {hasLimitedVmSupport() && <span className="text-sm font-normal text-gray-500 ml-2">(max {getMaxVms()})</span>}
+                  </h1>
                   <p className="text-sm text-gray-500">
                     {vms.length} VM{vms.length !== 1 ? 's' : ''} • {runningVms} active{runningVms !== 1 ? 's' : ''}
                   </p>

@@ -1,0 +1,67 @@
+# ===========================================
+# FreeboxOS Ultra Dashboard - Docker Compose
+# ===========================================
+#
+# Usage:
+#   docker-compose up -d
+#
+# Environment variables (optional):
+#   DASHBOARD_PORT - Dashboard port (default: 7505)
+#   FREEBOX_HOST - Freebox hostname (default: mafreebox.freebox.fr)
+#
+# Examples:
+#   DASHBOARD_PORT=8080 docker-compose up -d
+#   docker-compose --env-file .env up -d
+
+services:
+  freebox-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: freebox-dashboard
+    restart: unless-stopped
+
+    # Port mapping: host:container
+    ports:
+      - "${DASHBOARD_PORT:-7505}:3000"
+
+    # Environment configuration
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - FREEBOX_HOST=${FREEBOX_HOST:-mafreebox.freebox.fr}
+      - FREEBOX_TOKEN_FILE=/app/data/freebox_token.json
+      # Optional: Mock mode for testing different Freebox models
+      # - MOCK_FREEBOX_MODEL=ultra  # ultra, delta, pop, revolution
+
+    # Persistent storage for Freebox API token
+    volumes:
+      - freebox_data:/app/data
+
+    # Network mode options:
+    # Option 1: Bridge mode (default) - uses port mapping
+    # Option 2: Host mode - direct network access (uncomment below)
+    # network_mode: host
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Resource limits (optional)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '0.5'
+    #       memory: 256M
+    #     reservations:
+    #       cpus: '0.1'
+    #       memory: 128M
+
+# Named volume for persistent token storage
+volumes:
+  freebox_data:
+    name: freebox_dashboard_data

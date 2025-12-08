@@ -11,7 +11,7 @@ import {
   SpeedtestWidget,
   HistoryLog
 } from './components/widgets';
-import { ActionButton } from './components/ui';
+import { ActionButton, UnsupportedFeature } from './components/ui';
 import { LoginModal, TrafficHistoryModal, WifiSettingsModal, CreateVmModal } from './components/modals';
 import { TvPage, PhonePage, FilesPage, VmsPage, AnalyticsPage, SettingsPage } from './pages';
 import { usePolling } from './hooks/usePolling';
@@ -25,6 +25,7 @@ import {
   useVmStore,
   useHistoryStore
 } from './stores';
+import { useCapabilitiesStore } from './stores/capabilitiesStore';
 import { POLLING_INTERVALS, formatSpeed } from './utils/constants';
 import {
   MoreHorizontal,
@@ -48,11 +49,14 @@ const App: React.FC = () => {
   // Data stores
   const { info: systemInfo, temperatureHistory: systemTempHistory, fetchSystemInfo, reboot } = useSystemStore();
   const { status: connectionStatus, history: networkHistory, extendedHistory, fetchConnectionStatus, fetchExtendedHistory } = useConnectionStore();
-  const { networks: wifiNetworks, isLoading: wifiLoading, fetchWifiStatus } = useWifiStore();
+  const { networks: wifiNetworks, isLoading: wifiLoading, fetchWifiStatus, toggleBss } = useWifiStore();
   const { devices, fetchDevices } = useLanStore();
   const { tasks: downloads, fetchDownloads } = useDownloadsStore();
   const { vms, isLoading: vmLoading, error: vmError, fetchVms, startVm, stopVm } = useVmStore();
   const { logs: historyLogs, isLoading: historyLoading, fetchHistory } = useHistoryStore();
+
+  // Capabilities store for model-specific features
+  const { capabilities, supportsVm, hasLimitedVmSupport, getMaxVms } = useCapabilitiesStore();
 
   // Local state
   const [currentPage, setCurrentPage] = useState<PageType>('dashboard');
@@ -102,8 +106,9 @@ const App: React.FC = () => {
     interval: POLLING_INTERVALS.downloads
   });
 
+  // Only poll VMs if the model supports them
   usePolling(fetchVms, {
-    enabled: isLoggedIn,
+    enabled: isLoggedIn && supportsVm(),
     interval: POLLING_INTERVALS.vm
   });
 
@@ -180,6 +185,10 @@ const App: React.FC = () => {
     } else {
       await stopVm(id);
     }
+  };
+
+  const handleWifiToggle = async (bssId: string, enabled: boolean) => {
+    await toggleBss(bssId, enabled);
   };
 
   const handlePageChange = (page: PageType) => {
@@ -367,9 +376,9 @@ const App: React.FC = () => {
             <Card
               title="Wifi"
               actions={
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-1 sm:gap-2">
                   <ActionButton label="Filtrage" icon={Sliders} onClick={() => { setWifiModalTab('filter'); setIsWifiModalOpen(true); }} />
-                  <ActionButton label="Planification" icon={Calendar} onClick={() => { setWifiModalTab('planning'); setIsWifiModalOpen(true); }} />
+                  <ActionButton label="Planif." icon={Calendar} onClick={() => { setWifiModalTab('planning'); setIsWifiModalOpen(true); }} />
                   <ActionButton label="WPS" icon={WifiIcon} onClick={() => { setWifiModalTab('wps'); setIsWifiModalOpen(true); }} />
                 </div>
               }
@@ -377,7 +386,7 @@ const App: React.FC = () => {
               {wifiLoading ? (
                 <div className="text-center text-gray-500 py-4">Chargement...</div>
               ) : wifiNetworks.length > 0 ? (
-                <WifiPanel networks={wifiNetworks} />
+                <WifiPanel networks={wifiNetworks} onToggle={handleWifiToggle} />
               ) : (
                 <div className="text-center text-gray-500 py-4">
                   Aucun réseau WiFi configuré
@@ -436,10 +445,15 @@ const App: React.FC = () => {
           {/* Column 3 - VMs & Fichiers */}
           <div className="flex flex-col gap-6">
             <Card
-              title="VMs"
-              actions={hasDisk && !vmError ? <ActionButton label="Créer" icon={Plus} onClick={() => setIsCreateVmModalOpen(true)} /> : undefined}
+              title={hasLimitedVmSupport() ? `VMs (max ${getMaxVms()})` : "VMs"}
+              actions={supportsVm() && hasDisk && !vmError ? <ActionButton label="Créer" icon={Plus} onClick={() => setIsCreateVmModalOpen(true)} /> : undefined}
             >
-              {!hasDisk ? (
+              {!supportsVm() ? (
+                <UnsupportedFeature
+                  feature="Machines Virtuelles"
+                  featureType="vm"
+                />
+              ) : !hasDisk ? (
                 <div className="text-center py-8">
                   <Server size={32} className="mx-auto text-gray-600 mb-2" />
                   <p className="text-gray-500 text-sm">Aucun disque détecté</p>

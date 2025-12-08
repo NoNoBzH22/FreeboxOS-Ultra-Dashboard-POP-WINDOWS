@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { freeboxApi } from '../services/freeboxApi.js';
+import { modelDetection } from '../services/modelDetection.js';
 import { asyncHandler, createError } from '../middleware/errorHandler.js';
 
 const router = Router();
@@ -37,10 +38,15 @@ router.post('/login', asyncHandler(async (_req, res) => {
   }
 
   const session = await freeboxApi.login();
+
+  // Detect model capabilities after successful login
+  const capabilities = await modelDetection.detectModel();
+
   res.json({
     success: true,
     result: {
       permissions: session.permissions,
+      capabilities,
       message: 'Login successful'
     }
   });
@@ -49,6 +55,8 @@ router.post('/login', asyncHandler(async (_req, res) => {
 // POST /api/auth/logout - Close session
 router.post('/logout', asyncHandler(async (_req, res) => {
   await freeboxApi.logout();
+  // Clear cached capabilities on logout
+  modelDetection.clearCache();
   res.json({
     success: true,
     result: { message: 'Logged out' }
@@ -58,12 +66,20 @@ router.post('/logout', asyncHandler(async (_req, res) => {
 // GET /api/auth/check - Check session status
 router.get('/check', asyncHandler(async (_req, res) => {
   const isLoggedIn = await freeboxApi.checkSession();
+
+  // Include capabilities if logged in
+  let capabilities = null;
+  if (isLoggedIn) {
+    capabilities = await modelDetection.detectModel();
+  }
+
   res.json({
     success: true,
     result: {
       isRegistered: freeboxApi.isRegistered(),
       isLoggedIn,
-      permissions: freeboxApi.getPermissions()
+      permissions: freeboxApi.getPermissions(),
+      capabilities
     }
   });
 }));
